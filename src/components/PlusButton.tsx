@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { getCategories, getChecklist, getExpenses, setChecklist, setExpenses } from '@/utils/storage';
+import { getCategories, getChecklist, getExpenses, setChecklist, setExpenses, addTransaction } from '@/utils/storage';
 import { Expense } from '@/types';
 import { convertJPYtoMYRSync } from '@/utils/currency';
 
@@ -28,13 +28,14 @@ export default function PlusButton() {
     e.preventDefault();
     if (!amount || !selectedId) return;
 
+    const expenseId = crypto.randomUUID();
     let myrAmount = parseFloat(amount);
     if (currency === 'JPY') {
       myrAmount = convertJPYtoMYRSync(myrAmount);
     }
 
     const newExpense: Expense = {
-      id: Date.now().toString(),
+      id: expenseId,
       categoryId: selectedId,
       amount: myrAmount,
       date: new Date().toISOString().split('T')[0],
@@ -44,6 +45,17 @@ export default function PlusButton() {
 
     const expenses = getExpenses();
     setExpenses([...expenses, newExpense]);
+
+    // Create transaction record
+    const category = categories.find(cat => cat.id === selectedId);
+    addTransaction({
+      type: 'expense',
+      amount: parseFloat(amount),
+      currency,
+      description: description || `Expense in ${category?.name}`,
+      categoryId: selectedId,
+    });
+
     setIsOpen(false);
     resetForm();
   };

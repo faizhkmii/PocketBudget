@@ -1,4 +1,4 @@
-import { Category, Expense, ChecklistItem, WalletAccount } from '@/types';
+import { Category, Expense, ChecklistItem, WalletAccount, Transaction } from '@/types';
 import { convertJPYtoMYRSync } from '@/utils/currency';
 
 const STORAGE_KEYS = {
@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   expenses: 'expenses',
   checklist: 'checklist',
   wallet: 'wallet',
+  transactions: 'transactions',
 };
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -165,4 +166,80 @@ export const transferBetweenAccounts = (
   toAccount.balance += convertedAmount;
   
   setWallet(wallet);
+};
+
+// Transaction functions
+export const getTransactions = (): Transaction[] => {
+  if (typeof window === 'undefined') return [];
+  const data = localStorage.getItem(STORAGE_KEYS.transactions);
+  return data ? JSON.parse(data) : [];
+};
+
+export const setTransactions = (transactions: Transaction[]) => {
+  localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(transactions));
+};
+
+export const addTransaction = (transaction: Omit<Transaction, 'id' | 'date'>) => {
+  const transactions = getTransactions();
+  const newTransaction: Transaction = {
+    ...transaction,
+    id: Date.now().toString(),
+    date: new Date().toISOString(),
+  };
+  transactions.unshift(newTransaction); // Add to beginning for chronological order
+  setTransactions(transactions);
+  return newTransaction;
+};
+
+export const getTransactionsByCategory = (categoryId: string): Transaction[] => {
+  return getTransactions().filter(t => t.categoryId === categoryId);
+};
+
+export const updateAccountBalanceWithTransaction = (
+  accountId: string,
+  amount: number,
+  operation: 'add' | 'subtract',
+  description: string,
+  type: 'deposit' | 'withdraw'
+) => {
+  updateAccountBalance(accountId, amount, operation);
+  const account = getWallet().find(acc => acc.id === accountId);
+  if (account) {
+    addTransaction({
+      type,
+      amount,
+      currency: account.currency,
+      description,
+      [type === 'deposit' ? 'toAccountId' : 'fromAccountId']: accountId,
+    });
+  }
+};
+
+export const transferWithTransaction = (
+  fromAccountId: string,
+  toAccountId: string,
+  amount: number,
+  fromCurrency: 'MYR' | 'JPY',
+  description: string
+) => {
+  const wallet = getWallet();
+  const fromAccount = wallet.find(acc => acc.id === fromAccountId);
+  const toAccount = wallet.find(acc => acc.id === toAccountId);
+  
+  if (!fromAccount || !toAccount) return;
+  
+  // Check if from account has enough balance
+  if (fromAccount.balance < amount) return;
+  
+  transferBetweenAccounts(fromAccountId, toAccountId, amount, fromCurrency);
+  
+  // Add transaction record
+  addTransaction({
+    type: 'transfer',
+    amount,
+    currency: fromCurrency,
+    description,
+    fromAccountId,
+    toAccountId,
+  });
 };

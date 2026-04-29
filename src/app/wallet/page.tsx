@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { getWallet, updateAccountBalance, transferBetweenAccounts } from '@/utils/storage';
+import { getWallet, updateAccountBalanceWithTransaction } from '@/utils/storage';
 import { convertJPYtoMYRSync } from '@/utils/currency';
 import type { WalletAccount } from '@/types';
 
@@ -15,6 +15,8 @@ export default function Wallet() {
   const [transferFromId, setTransferFromId] = useState('');
   const [transferToId, setTransferToId] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
+  const [editingBalance, setEditingBalance] = useState<string | null>(null);
+  const [editBalanceValue, setEditBalanceValue] = useState('');
 
   const refreshWallet = () => {
     setWalletState(getWallet());
@@ -39,9 +41,9 @@ export default function Wallet() {
     if (!amount || amount <= 0) return;
 
     if (isWithdrawMode) {
-      updateAccountBalance(selectedAccountId, amount, 'subtract');
+      updateAccountBalanceWithTransaction(selectedAccountId, amount, 'subtract', `Withdrawal from ${selectedAccount?.name}`, 'withdraw');
     } else {
-      updateAccountBalance(selectedAccountId, amount, 'add');
+      updateAccountBalanceWithTransaction(selectedAccountId, amount, 'add', `Deposit to ${selectedAccount?.name}`, 'deposit');
     }
 
     setShowDepositModal(false);
@@ -50,20 +52,38 @@ export default function Wallet() {
     refreshWallet();
   };
 
-  const submitTransfer = () => {
-    const amount = parseFloat(transferAmount);
-    if (!amount || amount <= 0 || !transferFromId || !transferToId || transferFromId === transferToId) return;
+  const handleEditBalance = (accountId: string, currentBalance: number) => {
+    setEditingBalance(accountId);
+    setEditBalanceValue(currentBalance.toString());
+  };
 
-    const fromAccount = wallet.find(acc => acc.id === transferFromId);
-    if (!fromAccount || fromAccount.balance < amount) return;
+  const saveBalanceEdit = () => {
+    const newBalance = parseFloat(editBalanceValue);
+    if (isNaN(newBalance) || newBalance < 0) return;
 
-    transferBetweenAccounts(transferFromId, transferToId, amount, fromAccount.currency as 'MYR' | 'JPY');
+    const account = currentWallet.find(acc => acc.id === editingBalance);
+    if (!account) return;
 
-    setShowTransferModal(false);
-    setTransferFromId('');
-    setTransferToId('');
-    setTransferAmount('');
+    const difference = newBalance - account.balance;
+    if (difference === 0) {
+      setEditingBalance(null);
+      return;
+    }
+
+    const operation = difference > 0 ? 'add' : 'subtract';
+    const type = difference > 0 ? 'deposit' : 'withdraw';
+    const description = `Balance adjustment for ${account.name}`;
+
+    updateAccountBalanceWithTransaction(editingBalance, Math.abs(difference), operation, description, type);
+
+    setEditingBalance(null);
+    setEditBalanceValue('');
     refreshWallet();
+  };
+
+  const cancelBalanceEdit = () => {
+    setEditingBalance(null);
+    setEditBalanceValue('');
   };
 
   const currentWallet: WalletAccount[] = wallet.length > 0 ? wallet : getWallet();
@@ -183,15 +203,81 @@ export default function Wallet() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600 dark:text-gray-400">JPY Balance</span>
-                          <span className="font-semibold text-green-600 dark:text-green-400">JPY {account.balance.toLocaleString()}</span>
+                          {editingBalance === account.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                value={editBalanceValue}
+                                onChange={(e) => setEditBalanceValue(e.target.value)}
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded"
+                                autoFocus
+                              />
+                              <button
+                                onClick={saveBalanceEdit}
+                                className="text-green-600 hover:text-green-700 text-sm"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={cancelBalanceEdit}
+                                className="text-red-600 hover:text-red-700 text-sm"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-green-600 dark:text-green-400">
+                                JPY {account.balance.toLocaleString()}
+                              </span>
+                              <button
+                                onClick={() => handleEditBalance(account.id, account.balance)}
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
+                              >
+                                ✏️
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </>
                     ) : (
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600 dark:text-gray-400">Balance</span>
-                        <span className="font-semibold text-green-600 dark:text-green-400">
-                          {`${displayCurrency} ${displayBalance.toLocaleString()}`}
-                        </span>
+                        {editingBalance === account.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              value={editBalanceValue}
+                              onChange={(e) => setEditBalanceValue(e.target.value)}
+                              className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded"
+                              autoFocus
+                            />
+                            <button
+                              onClick={saveBalanceEdit}
+                              className="text-green-600 hover:text-green-700 text-sm"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={cancelBalanceEdit}
+                              className="text-red-600 hover:text-red-700 text-sm"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-green-600 dark:text-green-400">
+                              {`${displayCurrency} ${displayBalance.toLocaleString()}`}
+                            </span>
+                            <button
+                              onClick={() => handleEditBalance(account.id, account.balance)}
+                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
+                            >
+                              ✏️
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                     {account.type === 'credit' && account.limit && (

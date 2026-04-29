@@ -31,3 +31,15 @@ export interface WalletAccount {
   type: 'cash' | 'account' | 'credit';
   limit?: number; // for credit cards
 }
+
+export interface Transaction {
+  id: string;
+  type: 'income' | 'expense' | 'transfer' | 'deposit' | 'withdraw';
+  amount: number;
+  currency: 'MYR' | 'JPY';
+  description: string;
+  date: string; // ISO string
+  categoryId?: string; // for expenses
+  fromAccountId?: string; // for transfers/withdrawals
+  toAccountId?: string; // for transfers/deposits
+}

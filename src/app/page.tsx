@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCategories, getExpenses } from '@/utils/storage';
+import { getCategories, getExpenses, getTransactionsByCategory } from '@/utils/storage';
 import { Category, Expense } from '@/types';
 import { convertJPYtoMYRSync, convertMYRtoJPYSync, fetchExchangeRates } from '@/utils/currency';
 
@@ -13,6 +13,7 @@ export default function Home() {
   const [convertedAmount, setConvertedAmount] = useState(0);
   const [isLoadingRates, setIsLoadingRates] = useState(false);
   const [dashboardCurrency, setDashboardCurrency] = useState<'RM' | 'JPY'>('RM');
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetch latest rates on component mount
@@ -189,32 +190,76 @@ export default function Home() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Category Overview</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {categorySummary.map((cat) => (
-              <div key={cat.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md dark:hover:shadow-lg transition-shadow duration-200">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">{cat.name}</h3>
-                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                    <span className="text-sm">🏷️</span>
+            {categorySummary.map((cat) => {
+              const categoryTransactions = getTransactionsByCategory(cat.id).slice(0, 5); // Show last 5 transactions
+              const isExpanded = expandedCategory === cat.id;
+
+              return (
+                <div key={cat.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md dark:hover:shadow-lg transition-shadow duration-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">{cat.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setExpandedCategory(isExpanded ? null : cat.id)}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm"
+                      >
+                        {isExpanded ? '▲' : '▼'}
+                      </button>
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                        <span className="text-sm">🏷️</span>
+                      </div>
+                    </div>
                   </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Budget:</span>
+                      <span className="font-medium text-green-600 dark:text-green-400">{currencyLabel} {convertForDisplay(cat.balance).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Spent:</span>
+                      <span className="font-medium text-red-600 dark:text-red-400">{currencyLabel} {convertForDisplay(cat.spent).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-medium">
+                      <span className="text-gray-600 dark:text-gray-400">Remaining:</span>
+                      <span className={cat.remaining >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                        {currencyLabel} {convertForDisplay(cat.remaining).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Transaction History */}
+                  {isExpanded && (
+                    <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Recent Transactions</h4>
+                      {categoryTransactions.length > 0 ? (
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {categoryTransactions.map((transaction) => (
+                            <div key={transaction.id} className="flex justify-between items-center text-xs bg-white dark:bg-gray-600 rounded px-2 py-1">
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{transaction.description}</p>
+                                <p className="text-gray-500 dark:text-gray-400">
+                                  {new Date(transaction.date).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <span className={`font-semibold ${
+                                transaction.type === 'income' || transaction.type === 'deposit'
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                {transaction.type === 'income' || transaction.type === 'deposit' ? '+' : '-'}
+                                {transaction.currency} {transaction.amount.toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 italic">No transactions yet</p>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Budget:</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">{currencyLabel} {convertForDisplay(cat.balance).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Spent:</span>
-                    <span className="font-medium text-red-600 dark:text-red-400">{currencyLabel} {convertForDisplay(cat.spent).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-medium">
-                    <span className="text-gray-600 dark:text-gray-400">Remaining:</span>
-                    <span className={cat.remaining >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                      {currencyLabel} {convertForDisplay(cat.remaining).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
