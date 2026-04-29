@@ -22,3 +22,12 @@ export interface ChecklistItem {
   purchasedAmount?: number;
   purchasedCurrency?: 'MYR' | 'JPY';
 }
+
+export interface WalletAccount {
+  id: string;
+  name: string;
+  balance: number;
+  currency: 'MYR' | 'JPY';
+  type: 'cash' | 'account' | 'credit';
+  limit?: number; // for credit cards
+}

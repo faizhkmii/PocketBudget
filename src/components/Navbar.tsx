@@ -9,6 +9,7 @@ const navItems = [
   { href: '/categories', label: 'Categories', icon: '🏷️' },
   { href: '/statistics', label: 'Analytics', icon: '📈' },
   { href: '/checklist', label: 'Planning', icon: '📝' },
+  { href: '/wallet', label: 'Wallet', icon: '💰' },
 ];
 
 export default function Navbar() {
