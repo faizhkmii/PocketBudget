@@ -1,21 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { getCategories, setCategories, getExpenses } from '@/utils/storage';
-import { Category, Expense } from '@/types';
+import { Category } from '@/types';
 
 export default function Categories() {
-  const [categories, setCategoriesState] = useState<Category[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategoriesState] = useState<Category[]>(getCategories());
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editBalance, setEditBalance] = useState('');
   const [addMoneyCategoryId, setAddMoneyCategoryId] = useState('');
   const [addMoneyAmount, setAddMoneyAmount] = useState('');
-
-  useEffect(() => {
-    setCategoriesState(getCategories());
-    setExpenses(getExpenses());
-  }, []);
 
   const handleAddCategory = () => {
     if (!newCategoryName.trim()) return;
@@ -44,8 +40,31 @@ export default function Categories() {
     setAddMoneyAmount('');
   };
 
+  const handleEditCategoryStart = (cat: Category) => {
+    setEditingCategoryId(cat.id);
+    setEditBalance(cat.balance.toString());
+  };
+
+  const handleEditCategorySave = () => {
+    if (!editingCategoryId || !editBalance) return;
+    const updated = categories.map((cat) =>
+      cat.id === editingCategoryId
+        ? { ...cat, balance: parseFloat(editBalance) }
+        : cat
+    );
+    setCategoriesState(updated);
+    setCategories(updated);
+    setEditingCategoryId(null);
+    setEditBalance('');
+  };
+
+  const handleEditCategoryCancel = () => {
+    setEditingCategoryId(null);
+    setEditBalance('');
+  };
+
   const categorySummary = categories.map((cat) => {
-    const spent = expenses
+    const spent = getExpenses()
       .filter((exp) => exp.categoryId === cat.id)
       .reduce((sum, exp) => sum + exp.amount, 0);
     return { ...cat, spent, remaining: cat.balance - spent };
@@ -145,28 +164,67 @@ export default function Categories() {
               <div key={cat.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 border border-gray-200 dark:border-gray-600 hover:shadow-md dark:hover:shadow-lg transition-shadow duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{cat.name}</h3>
-                  <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg flex items-center justify-center">
-                    <span className="text-sm">🏷️</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg flex items-center justify-center">
+                      <span className="text-sm">🏷️</span>
+                    </div>
+                    {editingCategoryId !== cat.id && (
+                      <button
+                        onClick={() => handleEditCategoryStart(cat)}
+                        className="px-3 py-1 text-sm bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors"
+                      >
+                        Edit
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Budget</span>
-                    <span className="font-semibold text-green-600 dark:text-green-400">RM {cat.balance.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Spent</span>
-                    <span className="font-semibold text-red-600 dark:text-red-400">RM {cat.spent.toFixed(2)}</span>
-                  </div>
-                  <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Remaining</span>
-                      <span className={`font-bold ${cat.remaining >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        RM {cat.remaining.toFixed(2)}
-                      </span>
+                {editingCategoryId === cat.id ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Set Budget Limit</label>
+                      <input
+                        type="number"
+                        value={editBalance}
+                        onChange={(e) => setEditBalance(e.target.value)}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors"
+                        placeholder="Enter new budget"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleEditCategorySave}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={handleEditCategoryCancel}
+                        className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 py-2 px-4 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Budget</span>
+                      <span className="font-semibold text-green-600 dark:text-green-400">RM {cat.balance.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Spent</span>
+                      <span className="font-semibold text-red-600 dark:text-red-400">RM {cat.spent.toFixed(2)}</span>
+                    </div>
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Remaining</span>
+                        <span className={`font-bold ${cat.remaining >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                          RM {cat.remaining.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
