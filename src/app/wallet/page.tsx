@@ -95,13 +95,25 @@ export default function Wallet() {
                     </div>
                   </div>
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Balance</span>
-                      <span className="font-semibold text-green-600 dark:text-green-400">
-                        {account.id === 'rhb-multi' ? `RM 0 & JPY ${account.balance.toLocaleString()}` :
-                         `${displayCurrency} ${displayBalance.toLocaleString()}`}
-                      </span>
-                    </div>
+                    {account.id === 'rhb-multi' ? (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">RM Balance</span>
+                          <span className="font-semibold text-green-600 dark:text-green-400">RM 0</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">JPY Balance</span>
+                          <span className="font-semibold text-green-600 dark:text-green-400">JPY {account.balance.toLocaleString()}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Balance</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">
+                          {`${displayCurrency} ${displayBalance.toLocaleString()}`}
+                        </span>
+                      </div>
+                    )}
                     {account.type === 'credit' && account.limit && (
                       <>
                         <div className="flex justify-between items-center">

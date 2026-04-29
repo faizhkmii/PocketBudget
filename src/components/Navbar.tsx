@@ -21,7 +21,10 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">TravelTracker</h1>
+              <div className="flex items-center space-x-2">
+                <div className="text-2xl">💎</div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">FHpocket</h1>
+              </div>
             </div>
           </div>
           <div className="hidden md:flex items-center space-x-8">
