@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { getCategories, getExpenses, setExpenses } from '@/utils/storage';
 import { Expense } from '@/types';
+import { convertJPYtoMYRSync } from '@/utils/currency';
 
 export default function PlusButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,12 +18,17 @@ export default function PlusButton() {
     e.preventDefault();
     if (!amount || !categoryId) return;
 
+    let myrAmount = parseFloat(amount);
+    if (currency === 'JPY') {
+      myrAmount = convertJPYtoMYRSync(myrAmount);
+    }
+
     const newExpense: Expense = {
       id: Date.now().toString(),
       categoryId,
-      amount: parseFloat(amount),
+      amount: myrAmount,
       date: new Date().toISOString().split('T')[0],
-      description,
+      description: `${description} (${currency} ${amount})`,
       currency,
     };
 
@@ -41,46 +47,64 @@ export default function PlusButton() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 bg-green-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl shadow-lg"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center z-40 group"
+        aria-label="Add new expense"
       >
-        +
+        <svg className="w-6 h-6 group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+
+  return (
+    <>
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-full shadow-lg hover:shadow-xl dark:shadow-2xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center z-40 group"
+        aria-label="Add new expense"
+      >
+        <svg className="w-6 h-6 group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl mb-4">Add Expense</h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Amount</label>
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-indigo-600 dark:bg-indigo-500 px-6 py-4">
+              <h2 className="text-xl font-semibold text-white">Add New Expense</h2>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Amount</label>
                 <input
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full border rounded p-2"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors"
+                  placeholder="0.00"
                   required
                 />
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Currency</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Currency</label>
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value as 'MYR' | 'JPY')}
-                  className="w-full border rounded p-2"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors"
                 >
-                  <option value="MYR">MYR</option>
-                  <option value="JPY">JPY</option>
+                  <option value="MYR">MYR (Malaysian Ringgit)</option>
+                  <option value="JPY">JPY (Japanese Yen)</option>
                 </select>
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Category</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full border rounded p-2"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors"
                   required
                 >
-                  <option value="">Select Category</option>
+                  <option value="">Select a category</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
@@ -88,34 +112,37 @@ export default function PlusButton() {
                   ))}
                 </select>
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Description</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full border rounded p-2"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors"
+                  placeholder="What did you spend on?"
                 />
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-600">
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="px-4 py-2 bg-gray-300 rounded"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-500 text-white rounded"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg transition-colors"
                 >
-                  Add
+                  Add Expense
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+    </>
+  );
     </>
   );
 }
