@@ -6,16 +6,14 @@ import { Category, Expense } from '@/types';
 import { convertJPYtoMYRSync, convertMYRtoJPYSync, fetchExchangeRates } from '@/utils/currency';
 
 export default function Home() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories] = useState<Category[]>(getCategories());
+  const [expenses] = useState<Expense[]>(getExpenses());
   const [converterAmount, setConverterAmount] = useState('');
   const [converterFrom, setConverterFrom] = useState<'MYR' | 'JPY'>('JPY');
   const [convertedAmount, setConvertedAmount] = useState(0);
   const [isLoadingRates, setIsLoadingRates] = useState(false);
 
   useEffect(() => {
-    setCategories(getCategories());
-    setExpenses(getExpenses());
     // Fetch latest rates on component mount
     fetchExchangeRates();
   }, []);
@@ -30,7 +28,7 @@ export default function Home() {
           const rate = rates.MYR;
           const result = converterFrom === 'JPY' ? amount * rate : amount / rate;
           setConvertedAmount(result);
-        } catch (error) {
+        } catch {
           // Fallback to sync conversion
           const result = converterFrom === 'JPY'
             ? convertJPYtoMYRSync(parseFloat(converterAmount))
@@ -67,39 +65,39 @@ export default function Home() {
         </div>
 
         {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md dark:hover:shadow-lg transition-shadow duration-200">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md dark:hover:shadow-lg transition-shadow duration-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Budget</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">RM {totalBudget.toFixed(2)}</p>
+                <p className="text-xs uppercase tracking-[0.24em] font-semibold text-gray-500 dark:text-gray-400">Total Budget</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">RM {totalBudget.toFixed(2)}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">💰</span>
+              <div className="w-11 h-11 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
+                <span className="text-xl">💰</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md dark:hover:shadow-lg transition-shadow duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md dark:hover:shadow-lg transition-shadow duration-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Spent</p>
-                <p className="text-3xl font-bold text-red-600 dark:text-red-400">RM {totalSpent.toFixed(2)}</p>
+                <p className="text-xs uppercase tracking-[0.24em] font-semibold text-gray-500 dark:text-gray-400">Total Spent</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">RM {totalSpent.toFixed(2)}</p>
               </div>
-              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">💸</span>
+              <div className="w-11 h-11 bg-red-100 dark:bg-red-900/20 rounded-xl flex items-center justify-center">
+                <span className="text-xl">💸</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md dark:hover:shadow-lg transition-shadow duration-200">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md dark:hover:shadow-lg transition-shadow duration-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Remaining</p>
-                <p className="text-3xl font-bold text-green-600 dark:text-green-400">RM {remaining.toFixed(2)}</p>
+                <p className="text-xs uppercase tracking-[0.24em] font-semibold text-gray-500 dark:text-gray-400">Remaining</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">RM {remaining.toFixed(2)}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">✅</span>
+              <div className="w-11 h-11 bg-green-100 dark:bg-green-900/20 rounded-xl flex items-center justify-center">
+                <span className="text-xl">✅</span>
               </div>
             </div>
           </div>

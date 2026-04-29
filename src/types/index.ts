@@ -17,5 +17,8 @@ export interface ChecklistItem {
   id: string;
   name: string;
   budgetedAmount: number;
+  budgetCurrency?: 'MYR' | 'JPY';
   purchased: boolean;
+  purchasedAmount?: number;
+  purchasedCurrency?: 'MYR' | 'JPY';
 }

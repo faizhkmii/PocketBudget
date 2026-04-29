@@ -1,4 +1,5 @@
 import { Category, Expense, ChecklistItem } from '@/types';
+import { convertJPYtoMYRSync } from '@/utils/currency';
 
 const STORAGE_KEYS = {
   categories: 'categories',
@@ -6,10 +7,38 @@ const STORAGE_KEYS = {
   checklist: 'checklist',
 };
 
+const DEFAULT_CATEGORIES: Category[] = [
+  {
+    id: 'shopping',
+    name: 'Shopping',
+    balance: convertJPYtoMYRSync(75000),
+  },
+  {
+    id: 'buffer',
+    name: 'Buffer',
+    balance: convertJPYtoMYRSync(30000),
+  },
+  {
+    id: 'daily-living',
+    name: 'Daily living',
+    balance: convertJPYtoMYRSync(90000),
+  },
+  {
+    id: 'souvenir',
+    name: 'Souvenir',
+    balance: convertJPYtoMYRSync(20000),
+  },
+];
+
 export const getCategories = (): Category[] => {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') return DEFAULT_CATEGORIES;
   const data = localStorage.getItem(STORAGE_KEYS.categories);
-  return data ? JSON.parse(data) : [];
+  if (data) {
+    return JSON.parse(data);
+  }
+
+  localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(DEFAULT_CATEGORIES));
+  return DEFAULT_CATEGORIES;
 };
 
 export const setCategories = (categories: Category[]) => {
