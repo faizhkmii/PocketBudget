@@ -1,23 +1,89 @@
 'use client';
 
-import { getWallet } from '@/utils/storage';
+import { useState } from 'react';
+import { getWallet, updateAccountBalance, transferBetweenAccounts } from '@/utils/storage';
 import { convertJPYtoMYRSync } from '@/utils/currency';
+import type { WalletAccount } from '@/types';
 
 export default function Wallet() {
-  const wallet = getWallet();
+  const [wallet, setWalletState] = useState<WalletAccount[]>(() => getWallet());
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [isWithdrawMode, setIsWithdrawMode] = useState(false);
+  const [transferFromId, setTransferFromId] = useState('');
+  const [transferToId, setTransferToId] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
 
-  const totalBalanceMYR = wallet.reduce((sum, account) => {
+  const refreshWallet = () => {
+    setWalletState(getWallet());
+  };
+
+  const handleDeposit = (accountId: string) => {
+    setSelectedAccountId(accountId);
+    setDepositAmount('');
+    setIsWithdrawMode(false);
+    setShowDepositModal(true);
+  };
+
+  const handleWithdraw = (accountId: string) => {
+    setSelectedAccountId(accountId);
+    setDepositAmount('');
+    setIsWithdrawMode(true);
+    setShowDepositModal(true);
+  };
+
+  const submitDeposit = () => {
+    const amount = parseFloat(depositAmount);
+    if (!amount || amount <= 0) return;
+
+    if (isWithdrawMode) {
+      updateAccountBalance(selectedAccountId, amount, 'subtract');
+    } else {
+      updateAccountBalance(selectedAccountId, amount, 'add');
+    }
+
+    setShowDepositModal(false);
+    setDepositAmount('');
+    setSelectedAccountId('');
+    refreshWallet();
+  };
+
+  const submitTransfer = () => {
+    const amount = parseFloat(transferAmount);
+    if (!amount || amount <= 0 || !transferFromId || !transferToId || transferFromId === transferToId) return;
+
+    const fromAccount = wallet.find(acc => acc.id === transferFromId);
+    if (!fromAccount || fromAccount.balance < amount) return;
+
+    transferBetweenAccounts(transferFromId, transferToId, amount, fromAccount.currency as 'MYR' | 'JPY');
+
+    setShowTransferModal(false);
+    setTransferFromId('');
+    setTransferToId('');
+    setTransferAmount('');
+    refreshWallet();
+  };
+
+  const currentWallet: WalletAccount[] = wallet.length > 0 ? wallet : getWallet();
+
+  const totalBalanceMYR = currentWallet.reduce((sum, account) => {
     const amount = account.currency === 'JPY' ? convertJPYtoMYRSync(account.balance) : account.balance;
     return sum + amount;
   }, 0);
 
-  const totalCreditLimit = wallet
+  const totalCreditLimit = currentWallet
     .filter(account => account.type === 'credit')
     .reduce((sum, account) => sum + (account.limit || 0), 0);
 
-  const totalCreditUsed = wallet
+  const totalCreditUsed = currentWallet
     .filter(account => account.type === 'credit')
     .reduce((sum, account) => sum + account.balance, 0);
+
+  const selectedAccount = currentWallet.find(acc => acc.id === selectedAccountId);
+  const fromAccount = currentWallet.find(acc => acc.id === transferFromId);
+  const toAccount = currentWallet.find(acc => acc.id === transferToId);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -66,6 +132,20 @@ export default function Wallet() {
           </div>
         </div>
 
+        {/* Transfer Button */}
+        <button
+          onClick={() => {
+            setTransferFromId('');
+            setTransferToId('');
+            setTransferAmount('');
+            setShowTransferModal(true);
+          }}
+          className="mb-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200 flex items-center gap-2"
+        >
+          <span>🔄</span>
+          Transfer Money
+        </button>
+
         {/* Accounts List */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center mb-6">
@@ -75,9 +155,9 @@ export default function Wallet() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Your Accounts</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {wallet.map((account) => {
+            {currentWallet.map((account) => {
               const displayCurrency = account.id === 'maybank' || account.id === 'cimb' || account.id === 'hong-leong-wise' ? 'RM' :
-                                     account.id === 'cash' ? 'JPY' : 'JPY'; // cash is JPY, rhb is JPY
+                                     account.id === 'cash' ? 'JPY' : 'JPY';
               const displayBalance = account.currency === 'JPY' && displayCurrency === 'RM' ? convertJPYtoMYRSync(account.balance) : account.balance;
 
               return (
@@ -132,6 +212,22 @@ export default function Wallet() {
                         </div>
                       </>
                     )}
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-600 flex gap-2">
+                      <button
+                        onClick={() => handleDeposit(account.id)}
+                        className="flex-1 px-3 py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-xs font-semibold rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors duration-200"
+                      >
+                        + Add
+                      </button>
+                      {account.type !== 'credit' && (
+                        <button
+                          onClick={() => handleWithdraw(account.id)}
+                          className="flex-1 px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-semibold rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors duration-200"
+                        >
+                          - Withdraw
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -139,6 +235,148 @@ export default function Wallet() {
           </div>
         </div>
       </div>
+
+      {/* Deposit/Withdraw Modal */}
+      {showDepositModal && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-sm w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              {isWithdrawMode ? 'Withdraw Money' : 'Add Money'}
+            </h2>
+            {selectedAccount && (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Account: <span className="font-semibold text-gray-900 dark:text-gray-100">{selectedAccount.name}</span>
+                </p>
+                <div className="space-y-4">
+                  <input
+                    type="number"
+                    placeholder={`Enter amount in ${selectedAccount.currency}`}
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowDepositModal(false);
+                        setDepositAmount('');
+                      }}
+                      className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={submitDeposit}
+                      className={`flex-1 px-4 py-2 font-semibold rounded-lg transition-colors duration-200 text-white ${
+                        isWithdrawMode
+                          ? 'bg-red-600 hover:bg-red-700'
+                          : 'bg-green-600 hover:bg-green-700'
+                      }`}
+                    >
+                      {isWithdrawMode ? 'Withdraw' : 'Add'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Modal */}
+      {showTransferModal && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-sm w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              Transfer Money
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  From Account
+                </label>
+                <select
+                  value={transferFromId}
+                  onChange={(e) => setTransferFromId(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select source account</option>
+                  {currentWallet.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} ({acc.currency} {acc.balance.toLocaleString()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  To Account
+                </label>
+                <select
+                  value={transferToId}
+                  onChange={(e) => setTransferToId(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select destination account</option>
+                  {currentWallet.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} ({acc.currency})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Amount
+                </label>
+                <input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {fromAccount && toAccount && transferAmount && (
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                    {fromAccount.currency === toAccount.currency
+                      ? `Transfer: ${fromAccount.currency} ${transferAmount}`
+                      : `Convert: ${fromAccount.currency} ${transferAmount} → ${toAccount.currency} ${(
+                          fromAccount.currency === 'JPY'
+                            ? convertJPYtoMYRSync(parseFloat(transferAmount))
+                            : parseFloat(transferAmount) / convertJPYtoMYRSync(1)
+                        ).toLocaleString()}`
+                    }
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setTransferFromId('');
+                    setTransferToId('');
+                    setTransferAmount('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitTransfer}
+                  disabled={!transferFromId || !transferToId || !transferAmount || parseFloat(transferAmount) <= 0}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition-colors duration-200"
+                >
+                  Transfer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

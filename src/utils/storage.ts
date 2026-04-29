@@ -120,3 +120,49 @@ export const getWallet = (): WalletAccount[] => {
 export const setWallet = (wallet: WalletAccount[]) => {
   localStorage.setItem(STORAGE_KEYS.wallet, JSON.stringify(wallet));
 };
+
+export const updateAccountBalance = (accountId: string, amount: number, operation: 'add' | 'subtract') => {
+  const wallet = getWallet();
+  const account = wallet.find(acc => acc.id === accountId);
+  
+  if (!account) return;
+  
+  if (operation === 'add') {
+    account.balance += amount;
+  } else if (operation === 'subtract') {
+    account.balance = Math.max(0, account.balance - amount);
+  }
+  
+  setWallet(wallet);
+};
+
+export const transferBetweenAccounts = (
+  fromAccountId: string,
+  toAccountId: string,
+  amount: number,
+  fromCurrency: 'MYR' | 'JPY'
+) => {
+  const wallet = getWallet();
+  const fromAccount = wallet.find(acc => acc.id === fromAccountId);
+  const toAccount = wallet.find(acc => acc.id === toAccountId);
+  
+  if (!fromAccount || !toAccount) return;
+  
+  // Check if from account has enough balance
+  if (fromAccount.balance < amount) return;
+  
+  // Deduct from source account
+  fromAccount.balance -= amount;
+  
+  // Convert if currencies are different
+  const convertedAmount = fromCurrency === 'JPY' && toAccount.currency === 'MYR'
+    ? convertJPYtoMYRSync(amount)
+    : fromCurrency === 'MYR' && toAccount.currency === 'JPY'
+    ? amount / convertJPYtoMYRSync(1) // Reverse conversion
+    : amount;
+  
+  // Add to destination account
+  toAccount.balance += convertedAmount;
+  
+  setWallet(wallet);
+};
